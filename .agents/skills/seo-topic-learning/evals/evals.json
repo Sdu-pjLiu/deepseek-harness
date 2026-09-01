@@ -1,0 +1,42 @@
+{
+  "skill_name": "seo-topic-learning",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "zh-daily-run",
+      "prompt": "用主题自学习技能，对中文站执行今天的主题池自学习与排产（run_date 用上海当天）。先分析再写入。",
+      "expected_output": "先 search_objects 探表；并行启动 pool_schedule、search_queries、site_trend、page_engagement 子 Agent；合并 digest；输出决策 JSON；mode=write 时含事务 SQL 与写前检验；不修改 published_count。",
+      "files": [],
+      "assertions": [
+        "schema_before_query: 业务 SQL 前出现 search_objects 或探表步骤",
+        "subagent_used: 完整日批启动至少 2 个采集 lane 子 Agent",
+        "no_published_count_update: 输出 SQL 不含 published_count 修改",
+        "no_cross_lang_metrics: zh 任务不出现 gsc_query_stats 作为主读表"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "deepbi-reject",
+      "prompt": "检查中文主题池，如果缺 Listing 转化漏斗就补一题；另外评估要不要加「Shopify 多平台铺货」主题。先预览不要写库。",
+      "expected_output": "可提议合规 Listing 补题；Shopify 多平台必须在 DeepBI 审查中 reject，无违规 INSERT；mode=dry_run，不 COMMIT。",
+      "files": [],
+      "assertions": [
+        "mode_dry_run: 决策 JSON mode=dry_run 或明确不 COMMIT",
+        "deepbi_blocks_forbidden: Shopify 题在 rejected_keys 或 violations 中",
+        "no_forbidden_insert: 无 Shopify 相关 INSERT"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "cleanup-archive",
+      "prompt": "清理英文站不符合 DeepBI 边界的存量主题，已经发布过的题不要物理删除。先分析给我决策。",
+      "expected_output": "仅处理 en 语种；published_count>0 或存在 dispatched/done 的题用 archived，不用 DELETE；读 deepbi-and-pillars 与 write-invariants。",
+      "files": [],
+      "assertions": [
+        "lang_en_only: 分析针对 article_language=en",
+        "archive_not_delete_published: 已发布题使用 archived 而非 DELETE",
+        "reads_deepbi_reference: 引用 DeepBI 边界或 violations"
+      ]
+    }
+  ]
+}
