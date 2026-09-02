@@ -6,7 +6,15 @@
       "eval_name": "zh-daily-run",
       "prompt": "用主题自学习技能，对中文站执行今天的主题池自学习与排产（run_date 用上海当天）。先分析再写入。",
       "expected_output": "先 search_objects 探表；并行启动 pool_schedule、search_queries、site_trend、page_engagement 子 Agent；合并 digest；输出决策 JSON；mode=write 时含事务 SQL 与写前检验；不修改 published_count。",
-      "files": [],
+      "files": [
+        "knowledge/README.md",
+        "knowledge/mcp-and-tables.md",
+        "knowledge/collector-briefs.md",
+        "knowledge/topic-boundaries.md",
+        "knowledge/product.md",
+        "knowledge/write-invariants.md",
+        "knowledge/coverage-taxonomy.md"
+      ],
       "assertions": [
         "schema_before_query: 业务 SQL 前出现 search_objects 或探表步骤",
         "subagent_used: 完整日批启动至少 2 个采集 lane 子 Agent",
@@ -16,26 +24,41 @@
     },
     {
       "id": 2,
-      "eval_name": "deepbi-reject",
+      "eval_name": "brand-reject",
       "prompt": "检查中文主题池，如果缺 Listing 转化漏斗就补一题；另外评估要不要加「Shopify 多平台铺货」主题。先预览不要写库。",
-      "expected_output": "可提议合规 Listing 补题；Shopify 多平台必须在 DeepBI 审查中 reject，无违规 INSERT；mode=dry_run，不 COMMIT。",
-      "files": [],
+      "expected_output": "可提议合规 Listing 补题；Shopify 多平台必须在品牌审查中 reject，无违规 INSERT；mode=dry_run，不 COMMIT。",
+      "files": [
+        "knowledge/README.md",
+        "knowledge/mcp-and-tables.md",
+        "knowledge/collector-briefs.md",
+        "knowledge/topic-boundaries.md",
+        "knowledge/product.md",
+        "knowledge/write-invariants.md",
+        "knowledge/coverage-taxonomy.md"
+      ],
       "assertions": [
         "mode_dry_run: 决策 JSON mode=dry_run 或明确不 COMMIT",
-        "deepbi_blocks_forbidden: Shopify 题在 rejected_keys 或 violations 中",
+        "brand_blocks_forbidden: Shopify 题在 rejected_keys 或 violations 中",
         "no_forbidden_insert: 无 Shopify 相关 INSERT"
       ]
     },
     {
       "id": 3,
       "eval_name": "cleanup-archive",
-      "prompt": "清理英文站不符合 DeepBI 边界的存量主题，已经发布过的题不要物理删除。先分析给我决策。",
-      "expected_output": "仅处理 en 语种；published_count>0 或存在 dispatched/done 的题用 archived，不用 DELETE；读 deepbi-and-pillars 与 write-invariants。",
-      "files": [],
+      "prompt": "清理英文站不符合品牌边界的存量主题，已经发布过的题不要物理删除。先分析给我决策。",
+      "expected_output": "仅处理 en 语种；published_count>0 或存在 dispatched/done 的题用 archived，不用 DELETE；读 manifest 与 write-invariants。",
+      "files": [
+        "knowledge/README.md",
+        "knowledge/mcp-and-tables.md",
+        "knowledge/collector-briefs.md",
+        "knowledge/topic-boundaries.md",
+        "knowledge/product.md",
+        "knowledge/write-invariants.md"
+      ],
       "assertions": [
         "lang_en_only: 分析针对 article_language=en",
         "archive_not_delete_published: 已发布题使用 archived 而非 DELETE",
-        "reads_deepbi_reference: 引用 DeepBI 边界或 violations"
+        "reads_brand_knowledge: 引用 manifest 或 topic-boundaries 或 violations"
       ]
     }
   ]

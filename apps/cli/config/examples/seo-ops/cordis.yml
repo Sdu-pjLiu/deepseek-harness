@@ -1,0 +1,7 @@
+# SEO 运营：工作区为外部知识包（如 DeepBI）时，仍加载 Harness .agents/skills。
+# 用法示例（在 deepseek-harness 目录）：
+#   dsh web --patch apps/cli/config/examples/seo-ops/cordis.yml
+- id: skill-filesystem
+  config:
+    customSkillDirs:
+      - !!js "process.getBuiltinModule('node:path').resolve(baseUrl, '../../../../../.agents/skills')"

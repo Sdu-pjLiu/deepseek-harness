@@ -16,26 +16,38 @@ from pathlib import Path
 
 SKILL_ROOT = Path(__file__).resolve().parent.parent
 REQUIRED_REFERENCES = (
+    "workspace-contract.md",
+    "mcp-discipline.md",
+    "collector-lanes.md",
+)
+FORBIDDEN_REFERENCES = (
+    "write-invariants.md",
     "mcp-and-tables.md",
+    "collector-briefs.md",
+    "brand-pack.md",
     "deepbi-and-pillars.md",
     "coverage-taxonomy.md",
-    "write-invariants.md",
-    "collector-briefs.md",
 )
 FORBIDDEN_PATTERNS = (
     r"##\s*4\.\s*SQL",
     r"§4\s*SQL",
     r"SHOW CREATE TABLE",
     r"ORDER BY\s+weight\s+DESC",
+    r"references/deepbi-and-pillars",
+    r"AI-SEO-Agent",
+    r"/home/deepinsight",
+    r"topic_learning_scheduled",
+    r"config\.yml",
+    r"brand-pack",
 )
 REQUIRED_SKILL_HINTS = (
+    "workspace-contract",
+    "manifest",
     "search_objects",
     "pool_schedule",
-    "search_queries",
     "mode",
     "dry_run",
-    "write",
-    "collector-briefs",
+    "collector-lanes",
 )
 
 
@@ -65,6 +77,10 @@ def validate_skill_root(root: Path) -> list[str]:
             path = ref_dir / name
             if not path.is_file():
                 errors.append(f"缺少 reference: {path}")
+        for name in FORBIDDEN_REFERENCES:
+            path = ref_dir / name
+            if path.is_file():
+                errors.append(f"不应存在的部署 reference: {path}")
 
     evals_path = root / "evals" / "evals.json"
     if not evals_path.is_file():
