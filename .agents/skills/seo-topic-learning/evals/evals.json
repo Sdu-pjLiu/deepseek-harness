@@ -5,7 +5,7 @@
       "id": 1,
       "eval_name": "zh-daily-run",
       "prompt": "用主题自学习技能，对中文站执行今天的主题池自学习与排产（run_date 用上海当天）。先分析再写入。",
-      "expected_output": "先 search_objects 探表；并行启动 pool_schedule、search_queries、site_trend、page_engagement 子 Agent；合并 digest；输出决策 JSON；mode=write 时含事务 SQL 与写前检验；不修改 published_count。",
+      "expected_output": "先 search_objects 探表；并行启动 pool_schedule、search_queries、site_trend、page_engagement；决策 JSON；品牌审查；评分门禁（gates_pass/score/pass）；mode=write 且 pass=true 时含事务 SQL；不修改 published_count；日配额以 write-invariants 为准。",
       "files": [
         "knowledge/README.md",
         "knowledge/mcp-and-tables.md",
@@ -13,11 +13,13 @@
         "knowledge/topic-boundaries.md",
         "knowledge/product.md",
         "knowledge/write-invariants.md",
+        "knowledge/scoring-rubric.md",
         "knowledge/coverage-taxonomy.md"
       ],
       "assertions": [
         "schema_before_query: 业务 SQL 前出现 search_objects 或探表步骤",
         "subagent_used: 完整日批启动至少 2 个采集 lane 子 Agent",
+        "scoring_gate: 写库前出现 gates_pass 或评分 JSON",
         "no_published_count_update: 输出 SQL 不含 published_count 修改",
         "no_cross_lang_metrics: zh 任务不出现 gsc_query_stats 作为主读表"
       ]
@@ -26,7 +28,7 @@
       "id": 2,
       "eval_name": "brand-reject",
       "prompt": "检查中文主题池，如果缺 Listing 转化漏斗就补一题；另外评估要不要加「Shopify 多平台铺货」主题。先预览不要写库。",
-      "expected_output": "可提议合规 Listing 补题；Shopify 多平台必须在品牌审查中 reject，无违规 INSERT；mode=dry_run，不 COMMIT。",
+      "expected_output": "可提议合规 Listing 补题；Shopify 必须品牌拒绝；评分含 BRAND_REJECT 或 pass 反映拒绝；mode=dry_run，不 COMMIT。",
       "files": [
         "knowledge/README.md",
         "knowledge/mcp-and-tables.md",
@@ -34,6 +36,7 @@
         "knowledge/topic-boundaries.md",
         "knowledge/product.md",
         "knowledge/write-invariants.md",
+        "knowledge/scoring-rubric.md",
         "knowledge/coverage-taxonomy.md"
       ],
       "assertions": [
@@ -46,19 +49,81 @@
       "id": 3,
       "eval_name": "cleanup-archive",
       "prompt": "清理英文站不符合品牌边界的存量主题，已经发布过的题不要物理删除。先分析给我决策。",
-      "expected_output": "仅处理 en 语种；published_count>0 或存在 dispatched/done 的题用 archived，不用 DELETE；读 manifest 与 write-invariants。",
+      "expected_output": "仅处理 en；已发布用 archived；读 manifest、write-invariants 与 scoring-rubric；输出评分；不 COMMIT 除非用户明确要求且 pass。",
       "files": [
         "knowledge/README.md",
         "knowledge/mcp-and-tables.md",
         "knowledge/collector-briefs.md",
         "knowledge/topic-boundaries.md",
         "knowledge/product.md",
-        "knowledge/write-invariants.md"
+        "knowledge/write-invariants.md",
+        "knowledge/scoring-rubric.md"
       ],
       "assertions": [
         "lang_en_only: 分析针对 article_language=en",
         "archive_not_delete_published: 已发布题使用 archived 而非 DELETE",
         "reads_brand_knowledge: 引用 manifest 或 topic-boundaries 或 violations"
+      ]
+    },
+    {
+      "id": 4,
+      "eval_name": "scoring-blocks-write",
+      "prompt": "对中文站做主题排产预览：假设你想改一条 status=done 的排产日期来腾配额。先完整走评分，不要写库。",
+      "expected_output": "评分 gates_pass=false，gate_codes 含 DONE_TOUCH；pass=false；revision_hints 非空；明确不 COMMIT。",
+      "files": [
+        "knowledge/README.md",
+        "knowledge/write-invariants.md",
+        "knowledge/scoring-rubric.md",
+        "knowledge/topic-boundaries.md",
+        "knowledge/product.md",
+        "knowledge/mcp-and-tables.md"
+      ],
+      "assertions": [
+        "gates_fail: gates_pass=false 或 gate_codes 含 DONE_TOUCH",
+        "no_commit: 明确不 COMMIT",
+        "revision_hints_present: pass=false 时有 revision_hints"
+      ]
+    },
+    {
+      "id": 5,
+      "eval_name": "quota-overfill-reschedule",
+      "prompt": "对中文站做主题排产预览（dry_run）：假设 run_date 当天拟写占用已超过语种日配额（例如同一天多条官网 planned）。请先做配额对账再评分，不要写库。",
+      "expected_output": "产出 quota_ledger；超配日可动行改期外溢到后续日或精简到日配额；调整后 gate_codes 不应再含未处理的 QUOTA；mode=dry_run，不 COMMIT。可向后延伸超过 2 天。",
+      "files": [
+        "knowledge/README.md",
+        "knowledge/write-invariants.md",
+        "knowledge/scoring-rubric.md",
+        "knowledge/collector-briefs.md",
+        "knowledge/mcp-and-tables.md",
+        "knowledge/topic-boundaries.md",
+        "knowledge/product.md"
+      ],
+      "assertions": [
+        "quota_ledger_present: 决策或汇报含 quota_ledger",
+        "overfill_adjusted: 调整含改期/精简或 adjustments 非空",
+        "mode_dry_run: dry_run 或不 COMMIT",
+        "no_unresolved_quota: 调整后不把超配堆在同一天"
+      ]
+    },
+    {
+      "id": 6,
+      "eval_name": "quota-underfill-extend",
+      "prompt": "对中文站做主题排产预览：近端某日占用低于日配额且池内 remaining>0。请完成配额对账与评分；若无合格题可排则记合法空日。不要写库。",
+      "expected_output": "产出 quota_ledger；欠配则补槽或向后延伸直至逐日满额；若 remaining=0 或全在 min_gap 则 shortfall_reason=no_eligible_topic，无证据硬凑补题；评分提及 quota_ledger；dry_run。",
+      "files": [
+        "knowledge/README.md",
+        "knowledge/write-invariants.md",
+        "knowledge/scoring-rubric.md",
+        "knowledge/collector-briefs.md",
+        "knowledge/mcp-and-tables.md",
+        "knowledge/topic-boundaries.md",
+        "knowledge/product.md"
+      ],
+      "assertions": [
+        "quota_ledger_present: 含 quota_ledger",
+        "underfill_handled: 补槽/延伸或合法 shortfall_reason",
+        "no_fabricated_topics: 合法空日时不无证据补题",
+        "scoring_sees_ledger: 评分对照 quota_ledger 或提及 QUOTA_UNDERFILL 门闩语义"
       ]
     }
   ]

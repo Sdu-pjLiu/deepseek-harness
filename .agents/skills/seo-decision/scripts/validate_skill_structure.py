@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-静态校验 seo-topic-learning 技能目录结构与工作流要点。
+静态校验 seo-decision 技能目录结构与工作流要点。
 
 Author: pjliu
-Date: 2026-09-01
+Date: 2026-09-07
 """
 
 from __future__ import annotations
@@ -18,41 +18,40 @@ SKILL_ROOT = Path(__file__).resolve().parent.parent
 REQUIRED_REFERENCES = (
     "workspace-contract.md",
     "mcp-discipline.md",
-    "collector-lanes.md",
+    "tracks.md",
 )
 FORBIDDEN_REFERENCES = (
     "write-invariants.md",
     "mcp-and-tables.md",
     "collector-briefs.md",
+    "decision-rules.md",
+    "scoring-decision.md",
     "brand-pack.md",
     "deepbi-and-pillars.md",
-    "coverage-taxonomy.md",
 )
 FORBIDDEN_PATTERNS = (
-    r"##\s*4\.\s*SQL",
-    r"§4\s*SQL",
-    r"SHOW CREATE TABLE",
-    r"ORDER BY\s+weight\s+DESC",
-    r"references/deepbi-and-pillars",
     r"AI-SEO-Agent",
     r"/home/deepinsight",
-    r"topic_learning_scheduled",
+    r"seo_decision\.sh",
     r"config\.yml",
     r"brand-pack",
+    r"topic_learning_scheduled",
+    r"SHOW CREATE TABLE",
+    r"##\s*4\.\s*SQL",
 )
 REQUIRED_SKILL_HINTS = (
     "workspace-contract",
     "manifest",
     "search_objects",
-    "pool_schedule",
-    "mode",
-    "dry_run",
-    "collector-lanes",
+    "cutoff_date",
+    "diagnose",
+    "full",
     "gates_pass",
-    "revision_hints",
-    "评分门禁",
-    "quota_ledger",
-    "QUOTA_UNDERFILL",
+    "skipped_mutex_keys",
+    "scoring-decision",
+    "proposals/pending",
+    "独立审查",
+    "seo-topic-learning",
 )
 
 
@@ -74,6 +73,11 @@ def validate_skill_root(root: Path) -> list[str]:
         if hint not in body:
             errors.append(f"SKILL.md 缺少关键片段: {hint}")
 
+    if re.search(r"\.agents/skills.*作为可写|改写.*SKILL\.md.*自进化", body):
+        pass
+    if "禁止" not in body or "SKILL.md" not in body:
+        errors.append("SKILL.md 应明确禁止修改 SKILL.md")
+
     ref_dir = root / "references"
     if not ref_dir.is_dir():
         errors.append(f"缺少 references 目录: {ref_dir}")
@@ -93,8 +97,9 @@ def validate_skill_root(root: Path) -> list[str]:
     else:
         try:
             data = json.loads(evals_path.read_text(encoding="utf-8"))
-            if len(data.get("evals", [])) < 3:
-                errors.append("evals.json 应至少包含 3 条用例")
+            evals = data.get("evals", [])
+            if len(evals) < 4:
+                errors.append("evals.json 应至少包含 4 条用例")
         except json.JSONDecodeError as exc:
             errors.append(f"evals.json 解析失败: {exc}")
 

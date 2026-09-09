@@ -13,7 +13,9 @@
 
 ## 可选 lane（可先 COUNT 再决定是否派）
 
-`geo`、`autocomplete`、`competitor`、`delivery`
+`geo`、`autocomplete`、`competitor`、`delivery`、`video_signal`
+
+工作区 `collector-briefs.md` 若标明某可选 lane 仅某一技能使用，另一技能跳过。
 
 ## 统一 digest 外壳
 

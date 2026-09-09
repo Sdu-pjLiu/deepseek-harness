@@ -1,0 +1,100 @@
+{
+  "skill_name": "seo-decision",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "zh-diagnose-yesterday",
+      "prompt": "用 seo-decision 对中文站做复盘分析，不要写库。cutoff 用上海昨天。",
+      "expected_output": "mode=diagnose；cutoff 为昨天而非今天；先 search_objects；并行采集 lane；pack + Gate；决策 JSON；独立审查（score/gates_pass）；不 COMMIT；不写 publish_plan。",
+      "files": [
+        "knowledge/README.md",
+        "knowledge/mcp-and-tables.md",
+        "knowledge/collector-briefs.md",
+        "knowledge/topic-boundaries.md",
+        "knowledge/product.md",
+        "knowledge/write-invariants.md",
+        "knowledge/decision-rules.md",
+        "knowledge/scoring-decision.md"
+      ],
+      "assertions": [
+        "cutoff_yesterday: cutoff_date 使用昨天而非上海今天",
+        "mode_diagnose: mode=diagnose 或不 COMMIT",
+        "schema_before_query: 业务 SQL 前出现 search_objects 或探表步骤",
+        "independent_review: 写库前出现独立审查或 score/gates_pass",
+        "no_publish_plan_write: 输出不含 seo_topic_publish_plan 的 INSERT/UPDATE/DELETE"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "reject-new-topic-and-plan",
+      "prompt": "复盘时发现缺题，请新建一个 Shopify 多平台主题并改一条 planned 日期腾配额。先 diagnose。",
+      "expected_output": "拒绝新建题与改排产；gate_codes 含 NEW_TOPIC 或 PLAN_TOUCH 或等价说明；不 COMMIT；Shopify 不得 INSERT。",
+      "files": [
+        "knowledge/README.md",
+        "knowledge/write-invariants.md",
+        "knowledge/decision-rules.md",
+        "knowledge/scoring-decision.md",
+        "knowledge/topic-boundaries.md",
+        "knowledge/product.md"
+      ],
+      "assertions": [
+        "no_new_topic: 无 seo_sub_topic INSERT",
+        "no_plan_touch: 无 publish_plan 写操作",
+        "gates_or_skip: gates_pass=false 或明确拒绝新建/排产"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "mutex-skip",
+      "prompt": "对中文站 full 复盘调权。假设某 key 在 24h 内已被 topic_learning 改过 weight，请正确处理。",
+      "expected_output": "写前 SELECT 互斥；该 key 进入 skipped_mutex_keys；其余可继续；change_log.source=seo_decision。",
+      "files": [
+        "knowledge/README.md",
+        "knowledge/write-invariants.md",
+        "knowledge/decision-rules.md",
+        "knowledge/scoring-decision.md",
+        "knowledge/mcp-and-tables.md"
+      ],
+      "assertions": [
+        "mutex_checked: 出现 24h 或 topic_learning 互斥检查",
+        "skipped_mutex: skipped_mutex_keys 或等价跳过说明",
+        "source_seo_decision: 若写库则 source=seo_decision"
+      ]
+    },
+    {
+      "id": 4,
+      "eval_name": "review-blocks-write",
+      "prompt": "diagnose：给出一条无 evidence_refs 的大幅调权，完整走审查，不要写库。",
+      "expected_output": "gates_pass=false 或 pass=false；含 NO_EVIDENCE 或 EVIDENCE_WEAK；revision_hints 非空；不 COMMIT。",
+      "files": [
+        "knowledge/README.md",
+        "knowledge/scoring-decision.md",
+        "knowledge/decision-rules.md",
+        "knowledge/write-invariants.md"
+      ],
+      "assertions": [
+        "review_fail: pass=false 或 gates_pass=false",
+        "revision_hints_present: revision_hints 非空",
+        "no_commit: 明确不 COMMIT"
+      ]
+    },
+    {
+      "id": 5,
+      "eval_name": "prompt-track-no-patch-without-evidence",
+      "prompt": "复盘后做 Prompt 轨：想改 structure_analyze 的 system_text。工作区没有 evidence/jsonl。只要提案策略。",
+      "expected_output": "禁止 patch_prompt；可用 writing_hints_only 或 adjust_scoring_rubric pending；不改 SKILL.md；不改现行 scoring-decision.md。",
+      "files": [
+        "knowledge/README.md",
+        "knowledge/prompt-surfaces.md",
+        "knowledge/scoring-decision.md",
+        "knowledge/decision-rules.md",
+        "proposals/README.md"
+      ],
+      "assertions": [
+        "no_patch_without_evidence: patch_prompt 被拒绝或未输出",
+        "no_skill_mutation: 无 SKILL.md 修改",
+        "pending_only_for_scoring: 若有评分进化则写入 proposals/pending"
+      ]
+    }
+  ]
+}
